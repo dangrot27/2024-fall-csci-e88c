@@ -29,7 +29,7 @@ object finalProjectApplication extends LazyLogging {
       .map { line =>
         val fields = line.split(",")
         // Extract total_amount by index and convert to Double
-        fields(7).toDouble
+        fields(16).toDouble
       }
     val mediumAdoptedSalary: SCollection[Double] = sc.textFile(inputFile)
       .filter(!_.contains("Job_Title"))
@@ -37,7 +37,7 @@ object finalProjectApplication extends LazyLogging {
       .map { line =>
         val fields = line.split(",")
         // Extract total_amount by index and convert to Double
-        fields(7).toDouble
+        fields(16).toDouble
       }
     val highAdoptedSalary: SCollection[Double] = sc.textFile(inputFile)
       .filter(!_.contains("Job_Title"))
@@ -45,15 +45,22 @@ object finalProjectApplication extends LazyLogging {
       .map { line =>
         val fields = line.split(",")
         // Extract total_amount by index and convert to Double
-        fields(7).toDouble
+        fields(16).toDouble
       }
 
-    adoptedLevelVSSalary(lowAdoptedSalary, mediumAdoptedSalary, highAdoptedSalary, outputFile)
-    //aveTransactions(totalAmounts, outputFile)
+    //adoptedLevelVSSalary(lowAdoptedSalary, mediumAdoptedSalary, highAdoptedSalary, outputFile)
+    sumSalaries(lowAdoptedSalary, outputFile)
 
     sc.run().waitUntilFinish()
   }
-
+  def sumSalaries(lowAdoptedSalary: SCollection[Double], outputFile: String)(implicit sc: ScioContext): Unit = {
+    val lowSum: SCollection[Double] = lowAdoptedSalary.sum
+    
+    lowSum.map(println)
+    // Write the sum to the output file
+    //sum.map(total => s"Total Sum of Transactions: $total")
+    //  .saveAsTextFile(outputFile)
+  }
   def adoptedLevelVSSalary(lowAdoptedSalary: SCollection[Double], mediumAdoptedSalary: SCollection[Double], highAdoptedSalary: SCollection[Double],outputFile: String)(implicit sc: ScioContext): Unit = {
     val lowSumCount = lowAdoptedSalary
       .aggregate((0.0, 0))(
@@ -64,6 +71,7 @@ object finalProjectApplication extends LazyLogging {
     val lowAdoptedAverage = lowSumCount.map { case (sum, count) => 
       if (count > 0) sum / count else 0.0 
     }
+    println("LowAverage")
     lowAdoptedAverage.map(println)
 
     val mediumSumCount = mediumAdoptedSalary
@@ -75,6 +83,7 @@ object finalProjectApplication extends LazyLogging {
     val mediumAdoptedAverage = mediumSumCount.map { case (sum, count) => 
       if (count > 0) sum / count else 0.0 
     }
+    println("MediumAverage")
     mediumAdoptedAverage.map(println)
 
     val highSumCount = highAdoptedSalary
@@ -86,6 +95,7 @@ object finalProjectApplication extends LazyLogging {
     val highAdoptedAverage = highSumCount.map { case (sum, count) => 
       if (count > 0) sum / count else 0.0 
     }
+    println("HighAverage")
     highAdoptedAverage.map(println)
 
   }
