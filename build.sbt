@@ -5,8 +5,9 @@ ThisBuild / scalaVersion := "2.13.14"
 ThisBuild / semanticdbEnabled := true // enable SemanticDB
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision // use Scalafix compatible version
 
-lazy val root = (project in file(".")).
-  settings(
+lazy val root = (project in file("."))
+  .enablePlugins(JavaAppPackaging) // Move the plugin enable here
+  .settings(
     name := "2024FallScalaBigData",
     scalacOptions ++= Seq(
       "-feature",
@@ -26,7 +27,7 @@ lazy val root = (project in file(".")).
     ),
     libraryDependencies ++= Dependencies.core ++ Dependencies.scalaTest,
     dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.14.2",
-    Compile / mainClass := Some("org.cscie88c.week9.BeamDemoWordCount"),
+    Compile / mainClass := Some("org.cscie88c.week9.BeamBatchApplication"),
     Compile / discoveredMainClasses := Seq(), // ignore discovered main classes
     assembly / mainClass := Some("org.cscie88c.MainApp"),
     assembly / assemblyJarName := "2024FallScalaBigData.jar",
@@ -41,9 +42,15 @@ lazy val root = (project in file(".")).
     // see shading feature at https://github.com/sbt/sbt-assembly#shading
     assembly / assemblyShadeRules := Seq(
       ShadeRule.rename("shapeless.**" -> "shadeshapeless.@1").inAll
-    )
+    ),
+    // Configure sbt-native-packager to package the application as an executable
+    packageBin in Universal := {
+      val binFile = (packageBin in Compile).value
+      val outputDir = (target in Universal).value / "2024fallscalabigdata"
+      IO.copyFile(binFile, outputDir)
+      outputDir
+    }
   )
-  .enablePlugins(JavaAppPackaging)
 
 // Custom task to zip files for homework submission
 lazy val zipHomework = taskKey[Unit]("zip files for homework submission")
@@ -65,4 +72,3 @@ zipHomework := {
     None
   )
 }
-

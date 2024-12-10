@@ -31,11 +31,32 @@ object BeamQuartilesApplication extends LazyLogging {
     implicit val scImplicit: ScioContext = sc
 
     // 2. Read command line arguments
-
+    val inputFile: String = args("inputFile")
+    val outputFile: String = args("outputFile")
     // 3. Run pipeline
-    // uncomment line below to run the beam pipeline
-    // runPipeline(inputFile: String, outputFile: String)
+    runPipeline(inputFile: String, outputFile: String)
+    sc.run().waitUntilFinish()
   }
 
-  def runPipeline(inputFile: String, outputFile: String)(implicit sc: ScioContext): Unit = ???
+  def runPipeline(inputFile: String, outputFile: String)(implicit sc: ScioContext): Unit = {
+
+    // Read input CSV file and extract the `total_amount` column as Double
+    val lines: SCollection[String] = sc.textFile(inputFile)
+
+    val quartiles = approximateQuantiles( lines)
+
+    quartiles.map(println)
+
+    quartiles.saveAsTextFile(path = outputFile, numShards = 1)
+  }
+
+  def approximateQuantiles(lines: SCollection[String]): SCollection[String] = {
+  lines
+    .flatMap(TaxiTripData(_))             // Parse each line into a TaxiTripData instance
+    .map(_.total_amount.toDouble)         // Extract trip_distance as Double
+    .filter(_ > 0)
+    .quantilesApprox(3)                    // Compute approximate quartiles for Double values
+    .map(_.mkString("\n"))                 // Convert the result into a String for output
+  
+  }
 }

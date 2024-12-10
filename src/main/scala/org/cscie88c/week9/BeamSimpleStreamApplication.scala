@@ -26,12 +26,14 @@ object BeamSimpleStreamApplication extends LazyLogging {
 
   def main(cmdLineArgs: Array[String]): Unit = {
     // 1. Create context
-
+    val (sc: ScioContext, args: Args) = ContextAndArgs(cmdLineArgs)
+    implicit val scImplicit: ScioContext = sc
     // 2. Read command line arguments
-
+    val inputPath: String = args("input-folder")
+    val outputPath: String = args("output-folder")
     // 3. Run pipeline
     // uncomment line below to run beam pipeline
-    // runPipeline(inputPath, outputPath)
+    runPipeline(inputPath, outputPath)
 
   }
 
@@ -48,9 +50,35 @@ object BeamSimpleStreamApplication extends LazyLogging {
     ec.waitUntilFinish()
   }
 
-  def readTransactions(inputFile: String): SCollection[String] = ???
+  def readTransactions(inputFile: String)(implicit sc: ScioContext): SCollection[String] = {
+    val lines: SCollection[String] = sc.textFile(inputFile)
+    lines
+  }
 
-  def calculateWindowAggregate(lines: SCollection[String]): SCollection[Double] = ???
+  def calculateWindowAggregate(lines: SCollection[String]): SCollection[Double] = {
+    // Parse the transactions, assuming each line contains a numeric value and timestamp
+    val transactionsWithTimestamp: SCollection[(Double, Long)] = lines.map { line =>
+      val parts = line.split(",")  // Assuming CSV format: amount,timestamp
+      val amount = parts(0).toDouble
+      val timestamp = parts(1).toLong  // Assuming timestamp is in milliseconds
+      (amount, timestamp)
+    }
 
-  def writeAggregateToFile(outputPath: String, results: SCollection[Double]): Unit = ???
+    // Apply windowing: Fixed windows of 1 minute
+    val windowedTransactions = transactionsWithTimestamp
+      .withFixedWindows(Duration.standardMinutes(1))  // Window every 1 minute
+
+    // Sum the transactions within each window
+    val windowSums: SCollection[(Long, Double)] = windowedTransactions
+      .groupBy(_._2)  // Group by window (Instant represents event time, so this groups by the timestamp)
+      .mapValues(_.map(_._1).sum)  // Sum the amounts within each window
+
+    windowSums.map(_._2)
+  }
+
+  def writeAggregateToFile(outputPath: String, results: SCollection[Double]): Unit = {
+    results
+      .map(_.toString) // Convert each Double to a String so we can write it as text
+      .saveAsTextFile(outputPath) // Save the results to the specified output path
+  }
 }
